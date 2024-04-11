@@ -1,0 +1,39 @@
+name: "Location Tracker"
+description: "Expose location data through REST API"
+version: "1.0.9"
+slug: "location_mapper"
+init: false
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+options:
+  entity_id: ""
+  mysql_host: ""
+  mysql_db: "homeassistant"
+  mysql_user: "homeassistant"
+  mysql_password: ""
+  timezone: "America/Los_Angeles"
+  gcp_cred_file: ""
+  bigquery_project_id: ""
+  bigquery_dataset_id: ""
+  bigquery_table_id: ""
+  google_maps_api_key: ""
+schema:
+  entity_id: str
+  mysql_host: str
+  mysql_db: str
+  mysql_user: str
+  mysql_password: str
+  timezone: str
+  gcp_cred_file: "str?"
+  bigquery_project_id: "str?"
+  bigquery_dataset_id: "str?"
+  bigquery_table_id: "str?"
+  google_maps_api_key: str
+ingress: true
+startup: services
+panel_icon: mdi:crosshairs-gps
+panel_admin: false

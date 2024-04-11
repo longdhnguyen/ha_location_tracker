@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Map with Timestamp Input</title>
+  <style>
+    #map {
+      height: 100vh; /* Increased height to 70% of viewport height */
+      width: 100%; /* Maintains full width */
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 10px;
+    }
+
+    .timestamp-input {
+      width: 100px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <button id="backward-1h">Backward 1h</button>
+    <button id="backward-1m">Backward 1m</button>
+    <button id="backward-5m">Backward 5m</button>
+    <button id="backward-5s">Backward 5s</button>
+    <input type="datetime-local" id="datetime-picker">
+    <button id="forward-5s">Forward 5s</button>
+    <button id="forward-1m">Forward 1m</button>
+    <button id="forward-5m">Forward 5m</button>
+    <button id="forward-1h">Forward 1h</button>
+  </div>
+  <div id="map"></div>
+
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key={{google_maps_api_key}}&callback=initMap"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js"></script>
+  <script>
+    let map;
+    let marker;
+    let data;
+    let timestamp = new Date();
+
+    async function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 33.7241308, lng: -117.8184684 }, // Tustin coordinates
+        zoom: 14,
+      });
+      const response = await fetch("data");
+      data = (await response.json()).data;
+      moveTime(0);
+    }
+
+    function findClosestTimestamp(targetTimestamp) {
+      // Parse timestamps from JSON data, assume sorted desc by backend.
+      const parsedData = data.map((entry) => {
+        const timestamp = new Date(parseFloat(entry.timestamp) * 1000); // Convert to milliseconds
+        const latitude = parseFloat(entry.latitude);
+        const longitude = parseFloat(entry.longitude);
+        return [timestamp, latitude, longitude];
+      });
+
+      // Iterative search to find closest timestamp less than target
+      // TODO: Binary search maybe.
+      let closestTuple = null;
+      for (let i = 0; i < parsedData.length; i++) {
+        const currentTimestamp = parsedData[i][0];
+        if (currentTimestamp.getTime() < targetTimestamp.getTime()) {
+          // Found a timestamp less than target, update closest
+          return parsedData[i];
+        }
+      }
+      return parsedData[0];
+    }
+
+
+    function updateMap(requestedTimestamp, closestTimestamp, latitude, longitude) {
+      // Remove any existing marker
+      if (marker) {
+        marker.setMap(null);
+      }
+
+      // Create a new marker
+      marker = new google.maps.Marker({
+        position: { lat: latitude, lng: longitude },
+        map: map,
+      });
+
+      const requestedTimestampText = "Requested: " + moment(requestedTimestamp).format("YYYY-MM-DD HH:mm:ss");
+      const actualTimestampText = "Actual: " + moment(closestTimestamp).format("YYYY-MM-DD HH:mm:ss");
+      const infoWindow = new google.maps.InfoWindow({
+        content: requestedTimestampText + "<br>" + actualTimestampText
+      });
+
+      infoWindow.open(map, marker); 
+
+      // Center the map on the new marker
+      map.setCenter({ lat: latitude, lng: longitude });
+    }
+
+    function moveTime(amount) {
+      timestamp.setSeconds(timestamp.getSeconds() + amount);
+      const [closestTimestamp, latitude, longitude] = findClosestTimestamp(timestamp);
+      updateMap(timestamp, closestTimestamp, latitude, longitude);
+      document.getElementById("datetime-picker").value = moment(timestamp).format("YYYY-MM-DD HH:mm:ss");
+    }
+
+    document.getElementById("backward-5s").addEventListener("click", () => {
+      moveTime(-5);
+    });
+
+    document.getElementById("backward-1m").addEventListener("click", () => {
+      moveTime(-60);
+    });
+
+    document.getElementById("backward-5m").addEventListener("click", () => {
+      moveTime(-300);
+    });
+
+    document.getElementById("backward-1h").addEventListener("click", () => {
+      moveTime(-3600);
+    });
+
+    document.getElementById("forward-1h").addEventListener("click", () => {
+      moveTime(3600);
+    });
+
+    document.getElementById("forward-5m").addEventListener("click", () => {
+      moveTime(300);
+    });
+
+    document.getElementById("forward-1m").addEventListener("click", () => {
+      moveTime(60);
+    });
+
+    document.getElementById("forward-5s").addEventListener("click", () => {
+      moveTime(5);
+    });
+
+    document.getElementById("datetime-picker").addEventListener("change", () => {
+      try {
+        timestamp = new Date(document.getElementById("datetime-picker").value);
+        const [closestTimestamp, latitude, longitude] = findClosestTimestamp(timestamp);
+        updateMap(timestamp, closestTimestamp, latitude, longitude);
+      } catch (error) {
+        console.error("Invalid timestamp format");
+      }
+    });
+
+    moveTime(0);
+  </script>
+</body>
+</html>
